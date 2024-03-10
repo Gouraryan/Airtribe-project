@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Board</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .board {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .status-column {
+            width: 30%;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: white;
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .tasks {
+            min-height: 100px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .task {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .new-task-btn {
+            margin-top: 10px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 50%;
+        }
+
+        .close {
+            float: right;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        input[type="text"],
+        textarea {
+            width: calc(100% - 24px);
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .count {
+            color: #555;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="board">
+        <div class="status-column">
+            <h2>Not Started <span class="count" id="not-started-count">0</span></h2>
+            <div class="tasks" id="not-started-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <button class="new-task-btn" onclick="openNewTaskModal('not-started')">New</button>
+        </div>
+        <div class="status-column">
+            <h2>In Progress <span class="count" id="in-progress-count">0</span></h2>
+            <div class="tasks" id="in-progress-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <button class="new-task-btn" onclick="openNewTaskModal('in-progress')">New</button>
+        </div>
+        <div class="status-column">
+            <h2>Completed <span class="count" id="completed-count">0</span></h2>
+            <div class="tasks" id="completed-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <button class="new-task-btn" onclick="openNewTaskModal('completed')">New</button>
+        </div>
+    </div>
+
+    <div id="new-task-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeNewTaskModal()">&times;</span>
+            <h2>Add New Task</h2>
+            <label>Title:</label>
+            <input type="text" id="task-title">
+            <label>Description:</label>
+            <textarea id="task-description"></textarea>
+            <button onclick="addTask()">Add Task</button>
+        </div>
+    </div>
+
+    <div id="task-details-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeTaskDetailsModal()">&times;</span>
+            <h2>Task Details</h2>
+            <label>Title:</label>
+            <input type="text" id="details-task-title">
+            <label>Status:</label>
+            <select id="details-task-status">
+                <option value="not-started">Not Started</option>
+                <option value="in-progress">In Progress</option>
+                <option value="completed">Completed</option>
+            </select>
+            <label>Description:</label>
+            <textarea id="details-task-description"></textarea>
+            <button onclick="updateTaskDetails()">Save Changes</button>
+            <button onclick="deleteTask()">Delete Task</button>
+        </div>
+    </div>
+
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || {
+            "not-started": [],
+            "in-progress": [],
+            "completed": []
+        };
+
+        function allowDrop(event) {
+            event.preventDefault();
+        }
+
+        function drag(event, taskId) {
+            event.dataTransfer.setData("taskId", taskId);
+        }
+
+        function drop(event) {
+            event.preventDefault();
+            const taskId = event.dataTransfer.getData("taskId");
+            const status = event.target.parentElement.id;
+            const task = tasks[status].find(t => t.id === taskId);
+            task.status = status;
+            updateLocalStorage();
+            renderTasks();
+        }
+
+        function openNewTaskModal(status) {
+            document.getElementById("new-task-modal").style.display = "block";
+            document.getElementById("new-task-modal").dataset.status = status;
+        }
+
+        function closeNewTaskModal() {
+            document.getElementById("new-task-modal").style.display = "none";
+        }
+
+        function addTask() {
+            const status = document.getElementById("new-task-modal").dataset.status;
+            const title = document.getElementById("task-title").value;
+            const description = document.getElementById("task-description").value;
+            const taskId = Date.now().toString();
+            tasks[status].push({ id: taskId, title, description, status });
+            updateLocalStorage();
+            closeNewTaskModal();
+            renderTasks();
+        }
+
+        function openTaskDetailsModal(taskId) {
+            const task = find
+
+TaskById(taskId);
+            document.getElementById("task-details-modal").style.display = "block";
+            document.getElementById("details-task-title").value = task.title;
+            document.getElementById("details-task-status").value = task.status;
+            document.getElementById("details-task-description").value = task.description;
+            document.getElementById("task-details-modal").dataset.taskId = taskId;
+        }
+
+        function closeTaskDetailsModal() {
+            document.getElementById("task-details-modal").style.display = "none";
+        }
+
+        function updateTaskDetails() {
+            const taskId = document.getElementById("task-details-modal").dataset.taskId;
+            const task = findTaskById(taskId);
+            task.title = document.getElementById("details-task-title").value;
+            task.status = document.getElementById("details-task-status").value;
+            task.description = document.getElementById("details-task-description").value;
+            updateLocalStorage();
+            closeTaskDetailsModal();
+            renderTasks();
+        }
+
+        function deleteTask() {
+            const taskId = document.getElementById("task-details-modal").dataset.taskId;
+            const status = findTaskById(taskId).status;
+            tasks[status] = tasks[status].filter(task => task.id !== taskId);
+            updateLocalStorage();
+            closeTaskDetailsModal();
+            renderTasks();
+        }
+
+        function findTaskById(taskId) {
+            for (const status in tasks) {
+                const task = tasks[status].find(t => t.id === taskId);
+                if (task) {
+                    return task;
+                }
+            }
+            return null;
+        }
+
+        function updateLocalStorage() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+        }
+
+        function renderTasks() {
+            document.getElementById("not-started-tasks").innerHTML = "";
+            document.getElementById("in-progress-tasks").innerHTML = "";
+            document.getElementById("completed-tasks").innerHTML = "";
+
+            Object.entries(tasks).forEach(([status, tasksArray]) => {
+                tasksArray.forEach(task => {
+                    const taskElement = document.createElement("div");
+                    taskElement.setAttribute("class", "task");
+                    taskElement.setAttribute("draggable", "true");
+                    taskElement.setAttribute("ondragstart", `drag(event, '${task.id}')`);
+                    taskElement.addEventListener("click", () => openTaskDetailsModal(task.id));
+                    taskElement.innerHTML = `
+                        <h3>${task.title}</h3>
+                        <p>${task.description}</p>
+                    `;
+                    document.getElementById(`${status}-tasks`).appendChild(taskElement);
+                });
+
+                document.getElementById(`${status}-count`).innerText = tasksArray.length;
+            });
+        }
+
+        window.onload = renderTasks;
+    </script>
+</body>
+
+</html>
